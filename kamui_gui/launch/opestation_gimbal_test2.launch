@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find kamui_gui)/launch/hector_mapping.launch"/>
+
+	<group ns="gimbal">
+<!--
+	<node pkg="delay_laserscan" type="delay_laserscan_node" name="delay_laserscan_node" >
+		<param name="modify_delay" type="int" value="0" />
+	</node>
+-->
+<!--
+		<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_gimbal_node" name="laserscan_to_pointcloud_gimbal_node" output="screen" respawn="false"/>
+-->
+	</group>
+
+	<node name="laserscan_to_pointcloudgrid_gimbal_node" pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloudgrid_gimbal_node" >
+		<remap from="scan" to="/gimbal/scan"/>
+		<param name="resolution" type="double" value="0.05" />
+		<param name="stock_size" type="int" value="40" />
+	</node>
+	<node pkg="walls_from_pointcloud2" type="walls_from_pointcloud2_node" name="walls_from_pointcloud2_node" output="screen"/>
+
+<!--
+	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server_node">
+		<param name="resolution" type="double" value="0.03" />
+		<param name="base_frame_id" type="string" value="/base_link" />
+		<param name="filter_ground" type="bool" value="false" />
+	</node>
+-->
+<!--以下二行追加２０１４１０２２（加藤）
+	<include file="$(find ps3joy)/launch/ps3.launch"/>
+	<node pkg="kamui_teleop" type="kamui_teleop_node" name="kamui_teleop_node"/>
+-->
+
+	<node pkg="rviz" type="rviz" name="rviz"/>
+<!--<include file="$(find kamui_gui)/launch/kamui_gui2.launch"/>-->
+</launch>

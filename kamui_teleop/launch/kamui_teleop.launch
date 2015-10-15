@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+
+<launch>
+	<include file="$(find ps3joy)/launch/ps3.launch"/>
+
+	<node pkg="kamui_teleop" type="kamui_teleop_node" name="kamui_teleop_node" />
+
+</launch>

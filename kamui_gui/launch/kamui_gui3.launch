@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<launch>
+
+	<node pkg="qt_tutorials" type="gui_mapping_node2" name="gui_mapping_node2" respawn="true" output="screen">
+		<param name="filename" type="string" value="RoboCup2015-SHINOBI"/>
+	</node>
+
+	<node pkg="qt_tutorials" type="gui_laser_node" name="gui_laser_node" />
+
+	<node pkg="qt_tutorials" type="qlistener" name="qlistener" respawn="true" />
+
+	<node pkg="save_map_client" type="save_map_client_node" name="save_map_client_node" />
+
+	<node pkg="play_sound" type="play_sound_node" name="play_sound_node" >
+		<param name="sound_file" type="string" value="~/catkin_ws/sound/victim_ja_se.wav"/>
+	</node>
+
+	<group ns="optris">
+		<node pkg="thermo_image_conv" type="rotate_thermo_image_node" name="rotate_thermo_image_node"/>
+	</group>
+
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloudgrid_gimbal_node" name="laserscan_to_pointcloudgrid_gimbal_node" output="screen">
+		<remap from="scan" to="/gimbal/scan"/>
+		<param name="resolution" type="double" value="0.025" />
+		<param name="stock_size" type="int" value="40" />
+	</node>
+
+	<node pkg="walls_from_pointcloud2" type="walls_from_pointcloud2_node" name="walls_from_pointcloud2_node" output="screen"/>
+	<node pkg="wall_follower" type="detect_near_wall_node2" name="detect_near_wall_node2" output="screen"/>
+
+
+<!--
+	<node name="photo_image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+		<remap from="image" to="/usb_cam/image_raw"/>
+		<param name="image_transport" type="string" value="compressed" />
+    	<param name="window_name" value="Photo Camera" />
+	</node>
+	<node name="thermo_image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+		<remap from="image" to="/optris/rotated_thermal_image_view"/>
+    	<param name="window_name" value="Thermal Camera" />
+	</node>
+	<node name="thermo_mono_image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+		<remap from="image" to="/optris/thermal_image_out"/>
+		<param name="image_transport" type="string" value="compressed" />
+    	<param name="window_name" value="Thermal Camera (monochrome)" />
+	</node>
+	<node name="map_image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+		<remap from="image" to="/map_image"/>
+-->
+		<!--param name="image_transport" type="string" value="compressed" /-->
+<!--
+    	<param name="window_name" value="Map" />
+	</node>
+	<node name="laser_image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+		<remap from="image" to="/laser_image"/>
+		<param name="autosize" value="true" />
+-->
+		<!--param name="image_transport" type="string" value="compressed" /-->
+<!--
+    	<param name="window_name" value="LRF" />
+	</node>
+-->
+</launch>

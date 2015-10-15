@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+
+
+<!--
+2015/03/10 kamimura
+"opestation_gimbal_test2.launch"と"opestation2.launch"を統合
+3Dマップと熱源探索を同時に行う
+いちいちコメントをつけているので長いけどゴメンね！
+-->
+
+
+
+<launch>
+	<!-- ヘクターマッピングするlaunchをインクルード？ -->
+	<include file="$(find kamui_gui)/launch/hector_mapping.launch"/>
+	
+	<!--GUI関連launchをインクルード-->	
+	<include file="$(find kamui_gui)/launch/kamui_gui2.launch"/>
+	
+	<!-- レーザースキャンデータをロボット座標系での位置座標に変換するパッケージ -->
+	<node name="laserscan_to_pointcloudgrid_gimbal_node" pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloudgrid_gimbal_node" >
+		<remap from="scan" to="/gimbal/scan"/>
+		<param name="resolution" type="double" value="0.05" />
+		<param name="stock_size" type="int" value="40" />
+	</node>
+	
+	<!-- ジンバルレーザーセンサのスキャンデータからロボット周囲の障害物を計算するパッケージ
+		ロボットまわり5点の障害物データをパブリッシュする -->
+	<node pkg="walls_from_pointcloud2" type="walls_from_pointcloud2_node" name="walls_from_pointcloud2_node" output="screen"/>
+	
+	<!-- rvizノード（3Dマップ表示） -->
+	<node pkg="rviz" type="rviz" name="rviz"/>
+	
+	<!-- 熱カメラ関連のパッケージ
+		thermo_scan; 	カメラユニットの首ふり処理やVictim発見時の処理関連
+		thermo_range;	熱カメラの観測領域を発信するパッケージ -->
+	<node pkg="thermo_scan" type="thermo_scan2" name="thermo_scan2" output="screen" />
+	<node pkg="thermo_scan" type="detect_victim_pose_node" name="detect_victim_pose_node" output="screen" />
+
+	<node pkg="thermo_range" type="thermo_range_node" name="thermo_range_node" >
+		<param name="range" type="double" value="0.6"/>
+		<param name="field_of_view" type="double" value="0.6"/> 
+	</node>
+
+	<!-- Mapを保存するパッケージ？ -->
+	<include file="$(find kamui_gui)/launch/save_map.launch"/>
+
+	<!-- ナビゲーション用のMapデータを作成して発進するパッケージ -->
+	<node pkg="generate_navmap" type="generate_filteredmap_node2" name="generate_filteredmap_node2" />
+
+	<!-- 一周後、未探査領域に向けてロボットを動かすパッケージ 
+	<node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    	<rosparam file="$(find kamui_gui)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    	<rosparam file="$(find kamui_gui)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    	<rosparam file="$(find kamui_gui)/config/local_costmap_params.yaml" command="load" />
+    	<rosparam file="$(find kamui_gui)/config/global_costmap_params.yaml" command="load" />
+    	<rosparam file="$(find kamui_gui)/config/base_local_planner_params.yaml" command="load" />
+	</node>
+-->
+
+<!-- フロンティア法のパッケージ
+	<node pkg="frontier_with_wallfollower" type="frontier_with_wallfollower_node" name="frontier_with_wallfollower_node" output="screen"/>
+-->
+</launch>

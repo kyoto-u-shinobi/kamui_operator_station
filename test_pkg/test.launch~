@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+	<node name="test_node" pkg="test_pkg" type="test_node" />
+	<node name="laserscan_to_pointcloudgrid_gimbal_node" pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloudgrid_gimbal_node" >
+		<param name="resolution" type="double" value="0.02" />
+		<param name="stock_size" type="int" value="400" />
+	</node>
+	<node name="rviz" pkg="rviz" type="rviz" />
+	<node name="walls_from_pointcloud2_node" pkg="walls_from_pointcloud2" type="walls_from_pointcloud2_node" respawn="false" output="screen" />
+</launch>

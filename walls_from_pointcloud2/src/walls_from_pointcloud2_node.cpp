@@ -1,0 +1,148 @@
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+#include "sensor_msgs/PointCloud.h"
+#include "sensor_msgs/PointCloud2.h"
+#include "sensor_msgs/point_cloud_conversion.h"
+#include "wall_follower/walls.h"
+#include "tf/transform_listener.h"
+#include "tf/message_filter.h"
+#include "message_filters/subscriber.h"
+#include "std_srvs/Empty.h"
+
+#define Z_MIN	0.05 //[m]
+#define Z_MAX	0.65 //[m]
+
+//各種定義
+#define	ROAD_WIDTH	850		//!< 道の幅[m]//900mm...(JapanOpen),1200mm(WorldCup)
+
+//☆ロボットの筐体，自律走行のパラメータ
+#define	ROBOT_WIDTH 350				/*横幅*/
+
+class Distance{
+public:
+	Distance(){
+		Clear();
+	}
+	~Distance(){
+	}
+	void Clear(void){//適当に大きな値で初期化
+		front  = 10000;
+		left   = 10000;
+		right  = 10000;
+		left2  = 10000;
+		right2 = 10000;
+	}
+
+public:
+	double front;	//前方 [mm]
+	double left;	//左前 [mm]
+	double right;	//右前 [mm]
+	double left2;	//左後 [mm]
+	double right2;	//右後 [mm]
+};
+
+class WallsFromPointCloud2
+{
+public:
+	WallsFromPointCloud2() : tf_(),	target_frame_("/base_link")
+	{
+		point_sub_.subscribe(n_, "cloud2", 10);
+		tf_filter_ = new tf::MessageFilter<sensor_msgs::PointCloud2>(point_sub_, tf_, target_frame_, 10);
+		tf_filter_->registerCallback( boost::bind(&WallsFromPointCloud2::msgCallback, this, _1) );
+        walls_pub = n_.advertise<wall_follower::walls>("gimbal_walls", 10);
+	}
+
+private:
+	message_filters::Subscriber<sensor_msgs::PointCloud2> point_sub_;
+	tf::TransformListener tf_;
+	tf::MessageFilter<sensor_msgs::PointCloud2> * tf_filter_;
+	ros::NodeHandle n_;
+	std::string target_frame_;
+	Distance dist;
+	ros::Publisher walls_pub;
+
+	void msgCallback(const boost::shared_ptr<const sensor_msgs::PointCloud2>& msg) 
+	{
+		sensor_msgs::PointCloud cloud0, cloud;
+		sensor_msgs::convertPointCloud2ToPointCloud(*msg, cloud0);
+
+		try 
+		{
+			tf_.transformPointCloud(target_frame_, cloud0, cloud);
+		}
+		catch (tf::TransformException &ex) 
+		{
+			printf ("Failure %s\n", ex.what()); //Print exception which was caught
+		}
+
+		double urg_x, urg_y;
+		wall_follower::walls walls;
+	
+		dist.Clear();
+	
+		for(int i = 0; i < (int)cloud.points.size(); i++)
+		{
+			if(cloud.points[i].z >= Z_MIN && cloud.points[i].z <= Z_MAX)
+			{
+				urg_x = cloud.points[i].x * 1000;	// [m] から [mm] に変換
+				urg_y = cloud.points[i].y * 1000;	// [m] から [mm] に変換
+		
+				if(urg_x >= 100){
+					//前方
+					if( (urg_y > -(ROBOT_WIDTH/2+10)) && (urg_y < +(ROBOT_WIDTH/2+10)) )
+					{
+						if(urg_x < dist.front)
+						{
+							dist.front = (int)urg_x;
+						}
+					}
+					if(urg_x <= ROAD_WIDTH/2){
+						//右前の方向
+						if ((-urg_y > 21) && (-urg_y < dist.right)) 
+						{
+							dist.right = -(int)urg_y;
+						}
+						//左前の方向
+
+						if((urg_y > 21) && (urg_y < dist.left)) 
+						{
+							dist.left = (int)urg_y;
+						}
+					}
+				}
+				else if(urg_x < 100 && urg_x >= -ROBOT_WIDTH/2+100)//後方のデータ
+				{
+					if ( (-urg_y > 21) && (-urg_y < dist.right2)) 
+					{
+						dist.right2 = -(int)urg_y;
+					}
+					if ( (urg_y > 21) && (urg_y < dist.left2)) 
+					{
+						dist.left2 = (int)urg_y;
+					}
+				}
+			}
+		}
+		//ROS_INFO("F=%4.0f  L=%4.0f  L2=%4.0f  R=%4.0f  R2=%4.0f", dist.front,  dist.left, dist.left2, dist.right, dist.right2);
+
+		walls.front = dist.front;
+		walls.left = dist.left;
+		walls.left2 = dist.left2;
+		walls.right = dist.right;
+		walls.right2 = dist.right2;
+
+		walls_pub.publish(walls);
+	}
+};
+
+int main(int argc, char **argv)
+{
+	ros::init(argc, argv, "walls_from_pointcloud2_node");
+	ros::NodeHandle n;
+
+	WallsFromPointCloud2 wfpc;
+
+	ros::spin();
+
+	return 0;
+}

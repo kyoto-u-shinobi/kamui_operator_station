@@ -1,0 +1,17 @@
+<package>
+  <description brief="frontier_thermocam">
+
+     frontier_thermocam
+
+  </description>
+  <author>muro</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/frontier_thermocam</url>
+  <depend package="move_base_msgs"/>
+  <depend package="actionlib"/>
+  <depend package="roscpp"/>
+
+</package>
+
+

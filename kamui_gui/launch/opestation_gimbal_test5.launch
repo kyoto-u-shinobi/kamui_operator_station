@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+
+
+<!--
+2015/03/10 kamimura
+"opestation_gimbal_test2.launch"と"opestation2.launch"を統合
+3Dマップと熱源探索を同時に行う
+いちいちコメントをつけているので長いけどゴメンね！
+-->
+
+
+
+<launch>
+	<!-- ヘクターマッピングするlaunchをインクルード？ -->
+	<include file="$(find kamui_gui)/launch/hector_mapping.launch"/>
+		
+	<!-- レーザースキャンデータをロボット座標系での位置座標に変換するパッケージ -->
+	<node name="laserscan_to_pointcloudgrid_gimbal_node" pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloudgrid_gimbal_node" >
+		<remap from="scan" to="/gimbal/scan"/>
+		<param name="resolution" type="double" value="0.05" />
+		<param name="stock_size" type="int" value="30" />
+	</node>
+	
+	<!-- ジンバルレーザーセンサのスキャンデータからロボット周囲の障害物を計算するパッケージ
+		ロボットまわり5点の障害物データをパブリッシュする -->
+	<node pkg="walls_from_pointcloud2" type="walls_from_pointcloud2_node" name="walls_from_pointcloud2_node" output="screen"/>
+	
+	<!-- rvizノード（3Dマップ表示） 	-->
+	<node pkg="rviz" type="rviz" name="rviz"/>
+
+</launch>

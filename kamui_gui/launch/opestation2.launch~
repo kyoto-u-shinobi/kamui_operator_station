@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find kamui_gui)/launch/kamui_frontier_groovy2.launch"/>
+	<include file="$(find kamui_gui)/launch/kamui_gui.launch"/>
+</launch>

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+	<node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" />
+
+	<node pkg="rviz" type="rviz" name="rviz" />
+
+	<node pkg="move_base" type="move_base" name="move_base" />
+
+</launch>

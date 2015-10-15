@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+
+	<group ns="optris">
+	<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+
+	<node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" />
+
+	<node pkg="rviz" type="rviz" name="rviz" />
+
+</launch>

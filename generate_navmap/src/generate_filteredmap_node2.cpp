@@ -1,0 +1,335 @@
+#include "ros/ros.h"
+#include "tf/message_filter.h"
+#include "message_filters/subscriber.h"
+#include "sensor_msgs/Range.h"
+#include <math.h>
+#include "nav_msgs/OccupancyGrid.h"
+#include "std_msgs/Int8MultiArray.h"
+#include "std_msgs/String.h"
+#include "tf/LinearMath/Vector3.h"
+#include <tf/transform_datatypes.h>
+
+#define OBSERVED	127		// 緑（rviz上での表示色）
+#define UNSIGHT		-2		// 黄
+#define	OCCUPIED	100		// 黒
+#define UNOCCUPIED	0		// 白
+#define UNEXPLORERD	-1		// 灰
+
+class GenerateNaviMap
+{
+public:
+    nav_msgs::OccupancyGrid map;
+    ros::Publisher pub_map;
+
+
+	GenerateNaviMap() : tf_(),	target_frame_("/map")
+	{
+		point_sub_.subscribe(n_, "range", 100);
+		tf_filter_ = new tf::MessageFilter<sensor_msgs::Range>(point_sub_, tf_, target_frame_, 10);
+		tf_filter_->registerCallback( boost::bind(&GenerateNaviMap::msgCallback, this, _1) );
+        sub_map = n_.subscribe("map", 10, &GenerateNaviMap::mapCallback, this);
+        sub_state = n_.subscribe("state", 1000, &GenerateNaviMap::stateCallback, this);
+        sub_command = n_.subscribe("syscommand", 1000, &GenerateNaviMap::commandCallback, this);
+        pub_map = n_.advertise<nav_msgs::OccupancyGrid>("filtered_map", 10);
+	}
+
+private:
+	message_filters::Subscriber<sensor_msgs::Range> point_sub_;
+	tf::TransformListener tf_;
+	tf::MessageFilter<sensor_msgs::Range> * tf_filter_;
+	ros::NodeHandle n_;
+	std::string target_frame_;
+    std::string state;
+	
+	ros::Subscriber sub_map;
+    ros::Subscriber sub_state;
+    ros::Subscriber sub_command;
+    nav_msgs::OccupancyGrid pre_map;
+    std_msgs::Int8MultiArray occu_data, is_observed, observed_data;
+    double yaw;
+
+	// pt0, pt1, pt2の三点で作られる三角形内に点ptがあるかどうかを判定
+	/* 返り値： true...含まれる　false...含まれない
+	// 外積の向きで判定(バグがあるっぽい・・・)
+	bool detectInOutTriangle(geometry_msgs::Point& pt0, geometry_msgs::Point& pt1, \
+							 geometry_msgs::Point& pt2, geometry_msgs::Point& pt)
+	{
+		tf::Vector3 vec_ab(pt1.x - pt0.x, pt1.y - pt0.y, pt1.z - pt0.z);
+		tf::Vector3 vec_bc(pt2.x - pt1.x, pt2.y - pt1.y, pt2.z - pt1.z);
+		tf::Vector3 vec_ca(pt0.x - pt2.x, pt0.y - pt2.y, pt0.z - pt2.z);
+
+		tf::Vector3 vec_bp(pt1.x - pt.x, pt1.y - pt.y, pt1.z - pt.z);
+		tf::Vector3 vec_cp(pt2.x - pt.x, pt2.y - pt.y, pt2.z - pt.z);
+		tf::Vector3 vec_ap(pt0.x - pt.x, pt0.y - pt.y, pt0.z - pt.z);
+
+
+		if(tf::tfDot(tf::tfCross(vec_ab,vec_bp), tf::tfCross(vec_ca,vec_ap)) >= 0 \
+		   && tf::tfDot(tf::tfCross(vec_bc,vec_cp), tf::tfCross(vec_ca,vec_ap)) >= 0)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+
+	}
+	*/
+	// 三角形を一つの辺と一つの点に分けて判定
+	bool detectInOutTriangle(geometry_msgs::Point& pt0, geometry_msgs::Point& pt1, \
+							 geometry_msgs::Point& pt2, geometry_msgs::Point& pt)
+	{
+		if((pt2.x*(pt0.y-pt1.y)+pt2.y*(pt1.x-pt0.x)+pt0.x*pt1.y-pt1.x*pt0.y)* \
+		   (pt.x*(pt0.y-pt1.y) +pt.y*(pt1.x-pt0.x) +pt0.x*pt1.y-pt1.x*pt0.y) < 0)
+		{
+			return false;
+		}
+		else if((pt0.x*(pt1.y-pt2.y)+pt0.y*(pt2.x-pt1.x)+pt1.x*pt2.y-pt2.x*pt1.y)* \
+		        (pt.x*(pt1.y-pt2.y) +pt.y*(pt2.x-pt1.x) +pt1.x*pt2.y-pt2.x*pt1.y) < 0)
+		{
+			return false;
+		}
+		else if((pt1.x*(pt2.y-pt0.y)+pt1.y*(pt0.x-pt2.x)+pt2.x*pt0.y-pt0.x*pt2.y)* \
+		        (pt.x*(pt2.y-pt0.y) +pt.y*(pt0.x-pt2.x) +pt2.x*pt0.y-pt0.x*pt2.y) < 0)
+		{
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	} 
+
+	//	Callback to register with tf::MessageFilter to be called when transforms are available
+	void msgCallback(const boost::shared_ptr<const sensor_msgs::Range>& msg) 
+    {
+        geometry_msgs::Point ptg;
+        double xi, yi;
+        double range = msg->range;
+        double field_of_view = msg->field_of_view;
+        geometry_msgs::PointStamped point_in[3], point_out[3];
+		
+
+		point_in[0].header.frame_id = "/thermocam_link";
+		point_in[0].point.x = 0.0;
+		point_in[0].point.y = 0.0;
+		point_in[0].point.z = 0.0;
+		point_in[1].header.frame_id = "/thermocam_link";
+		point_in[1].point.x = range;
+		point_in[1].point.y = -range*tan(field_of_view/2);
+		point_in[1].point.z = 0.0;
+		point_in[2].header.frame_id = "/thermocam_link";
+		point_in[2].point.x = range;
+		point_in[2].point.y = range*tan(field_of_view/2);
+		point_in[2].point.z = 0.0;
+
+		try 
+		{
+			for(int i = 0; i < 3; i++)
+				tf_.transformPoint(target_frame_, point_in[i], point_out[i]);
+		}
+		catch (tf::TransformException &ex) 
+		{
+			printf ("Failure %s\n", ex.what()); //Print exception which was caught
+		}
+
+        int k1=2;
+        int k2=1;
+
+		for(int i = 0; i < map.info.width * map.info.height; i++)
+		{
+			//pti.x = map.info.origin.position.x + (i%map.info.width)*map.info.resolution + map.info.resolution/2;
+			//pti.y = map.info.origin.position.y + (i/map.info.width)*map.info.resolution + map.info.resolution/2;
+			//pti.z = 0;
+
+			xi = (i%map.info.width)*map.info.resolution + map.info.resolution/2;
+			yi = (i/map.info.width)*map.info.resolution + map.info.resolution/2;
+			ptg.x = map.info.origin.position.x + xi*cos(yaw) - yi*sin(yaw);
+			ptg.y = map.info.origin.position.y + xi*sin(yaw) + yi*cos(yaw);
+			ptg.z = 0;
+	
+
+            if(this->detectInOutTriangle(point_out[0].point, point_out[1].point, point_out[2].point, ptg))// && state != "Moving" && state != "Waiting") // 観測済みかどうか判定
+			{
+				if(map.data[i] == OCCUPIED || map.data[i] == UNSIGHT)
+				{
+					map.data[i] = OBSERVED; // 熱カメラのrange内 かつ occupied → 観測済みとマーク
+				}
+                else if(map.data[i] == UNOCCUPIED || (map.data[i] >= -100 && map.data[i] <= -50))
+				{
+                    double yaw_ = atan2(ptg.y-point_out[0].point.y, ptg.x-point_out[0].point.x);
+                    bool flag_out_wall = false;
+                    double dist = sqrt(pow(ptg.y-point_out[0].point.y, 2.0) + pow(ptg.x-point_out[0].point.x, 2.0));
+                    for(double rj=0; rj <= dist; rj += map.info.resolution/2)
+                    {
+                        unsigned int index;
+                        double xr, yr;
+                        xr = rj * cos(yaw_) + point_out[0].point.x - map.info.origin.position.x;
+                        yr = rj * sin(yaw_) + point_out[0].point.y - map.info.origin.position.y;
+                        index = (unsigned int)(yr/map.info.resolution)*map.info.width + (unsigned int)(xr/map.info.resolution);
+                        if(index < map.data.size() && (map.data[index] == OCCUPIED || map.data[index] == OBSERVED || map.data[index] == UNSIGHT))
+                        {
+                            flag_out_wall = true;
+                            break;
+                        }
+                    }
+                    double yaw_mid = atan2((point_out[1].point.y+point_out[2].point.y)/2-point_out[0].point.y, (point_out[1].point.x+point_out[2].point.x)/2-point_out[0].point.x);
+                    double rate = (k1*(dist - range/2)*(dist - range/2) + k2*(yaw_-yaw_mid)*(yaw_-yaw_mid))/(k1*range*range/4+k2*field_of_view*field_of_view/4);
+                    if(rate > 1)    rate = 1;
+                    else if(rate < 0) rate = 0;
+                    if(!flag_out_wall)
+                    {
+                        if(state == "Scanning")
+                        {
+                            map.data[i] = -50-50*rate;
+                        }
+                        else
+                        {
+                            map.data[i] = -100+50*rate;
+                        }
+                    }
+                }
+                is_observed.data[i] = 1;
+                observed_data.data[i] = map.data[i];
+			}
+        }
+	}
+
+	void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+	{
+		nav_msgs::OccupancyGrid map0;
+        std_msgs::Int8MultiArray is_observed0, observed_data0;
+		double xi, yi, xj, yj, xg, yg;
+		double pre_yaw, yaw0;
+		/*
+		map.header.frame_id = msg->header.frame_id;
+		map.header.stamp = msg->header.stamp;
+
+		map.info.map_load_time = msg->info.map_load_time;
+		map.info.width = msg->info.width;
+		map.info.height = msg->info.height;
+		map.info.resolution = msg->info.resolution;
+		map.info.origin.position.x = msg->info.origin.position.x;
+		map.info.origin.position.y = msg->info.origin.position.y;
+		map.info.origin.position.z = msg->info.origin.position.z;
+		map.info.origin.orientation.x = msg->info.origin.orientation.x;
+		map.info.origin.orientation.y = msg->info.origin.orientation.y;
+		map.info.origin.orientation.z = msg->info.origin.orientation.z;
+		map.info.origin.orientation.w = msg->info.origin.orientation.w;
+		*/
+		pre_map = map;
+		map0 = *msg;
+		//map.header = msg->header;
+		//map.info = msg->info;
+
+		pre_yaw = tf::getYaw(pre_map.info.origin.orientation);
+		yaw0 = tf::getYaw(msg->info.origin.orientation);
+
+		//ROS_INFO("%d %d", map.info.width, map.info.height);//debug
+
+		map0.data.resize(msg->info.width * msg->info.height);
+		occu_data.data.resize(msg->info.width * msg->info.height);
+		is_observed0.data.resize(msg->info.width * msg->info.height);
+        observed_data0.data.resize(msg->info.width * msg->info.height);
+		for(int i = 0; i < msg->info.width * msg->info.height; i++)
+		{
+			is_observed0.data[i] = 0;
+            observed_data0.data[i] = msg->data[i];
+
+			xi = (i%msg->info.width)*msg->info.resolution + msg->info.resolution/2;
+			yi = (i/msg->info.width)*msg->info.resolution + msg->info.resolution/2;
+			xg = msg->info.origin.position.x + xi*cos(yaw0) - yi*sin(yaw0);
+			yg = msg->info.origin.position.y + xi*sin(yaw0) + yi*cos(yaw0);
+			xj = (xg - pre_map.info.origin.position.x)*cos(pre_yaw) + (yg - pre_map.info.origin.position.y)*sin(pre_yaw);
+			yj = -(xg - pre_map.info.origin.position.x)*sin(pre_yaw) + (yg - pre_map.info.origin.position.y)*cos(pre_yaw);
+
+			if(xj >= 0 && xj <= pre_map.info.resolution*pre_map.info.width \
+			   && yj >= 0 && yj <= pre_map.info.resolution*pre_map.info.height)
+			{	// 更新前のmapの範囲内のとき
+				unsigned int j;
+				j = (unsigned int)(yj/pre_map.info.resolution)*pre_map.info.width + (unsigned int)(xj/pre_map.info.resolution);
+				if(j < is_observed.data.size() && is_observed.data[j] == 1)	// 探索済みの場合
+				{
+                    if(msg->data[i] == OCCUPIED)
+                    {
+                        map0.data[i] = OBSERVED; // 障害物を観測済みに
+                    }
+                    else if(msg->data[i] == UNOCCUPIED)
+                    {
+                        if(observed_data.data[j] >= -100 && observed_data.data[j] <= -50)
+                        {
+                            map0.data[i] = observed_data.data[j];
+                        }
+                    }
+					occu_data.data[i] = msg->data[i];
+					is_observed0.data[i] = 1;
+                    observed_data0.data[i] = map0.data[i];
+				}
+				else	// 未探索の範囲
+				{
+					if(msg->data[i] == OCCUPIED) // 障害物があるとき
+					{
+						occu_data.data[i] = msg->data[i];
+						map0.data[i] = UNSIGHT;	// 未観測データで上書き
+					}
+					else
+					{
+						occu_data.data[i] = msg->data[i];
+						map0.data[i] = msg->data[i]; // データそのまま
+					}
+				}
+			}
+			else // 新しく得られたmapの範囲
+			{
+				if(msg->data[i] == OCCUPIED) // 障害物があるとき
+				{
+					occu_data.data[i] = msg->data[i];
+					map0.data[i] = UNSIGHT;	// 未観測データで上書き
+				}
+				else
+				{
+					occu_data.data[i] = msg->data[i];
+					map0.data[i] = msg->data[i]; // データそのまま
+				}
+			}
+		}
+		
+		map = map0;
+		is_observed = is_observed0;
+        observed_data = observed_data0;
+		yaw = yaw0;
+	}
+
+    void stateCallback(const std_msgs::String::ConstPtr& msg)
+    {
+        state = msg->data;
+    }
+
+    void commandCallback(const std_msgs::String::ConstPtr& msg)
+    {
+        if(msg->data == "reset")
+        {
+            occu_data.data.resize(0);
+            is_observed.data.resize(0);
+        }
+    }
+};
+
+
+
+int main(int argc, char ** argv)
+{
+    ros::init(argc, argv, "generate_filteredmap_node2"); //Init ROS
+    GenerateNaviMap gnm; //Construct class
+
+    ros::Rate loop_rate(1);	// ループ頻度を設定(Hz)
+
+    while (ros::ok())
+    {
+        gnm.pub_map.publish(gnm.map);
+
+        ros::spinOnce();
+
+        loop_rate.sleep();
+    }
+};

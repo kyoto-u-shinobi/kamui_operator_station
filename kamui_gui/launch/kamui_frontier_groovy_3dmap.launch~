@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<launch>
+	<!--include file="$(find hector_mapping)/launch/mapping_default.launch"/-->
+	<include file="$(find kamui_gui)/launch/hector_mapping.launch"/>
+
+	<node pkg="thermo_scan" type="thermo_scan2" name="thermo_scan2" output="screen" />
+	<node pkg="thermo_scan" type="detect_victim_pose_node" name="detect_victim_pose_node" output="screen" />
+
+	<node pkg="thermo_range" type="thermo_range_node" name="thermo_range_node" >
+		<param name="range" type="double" value="0.6"/>
+		<param name="field_of_view" type="double" value="0.6"/> 
+	</node>
+<!--
+	<node pkg="rviz" type="rviz" name="rviz" />
+
+	<node pkg="frontier_thermocam" type="frontier_thermocam_pub_node" name="frontier_thermocam_pub_node" />
+-->
+	<include file="$(find kamui_gui)/launch/save_map.launch"/>
+<!--
+	<node pkg="image_view" type="image_view" name="camera_image_view" >
+		<param name="image" type="string" value="/usb_cam/image_raw" />
+	</node>
+-->
+
+
+	<node pkg="generate_navmap" type="generate_filteredmap_node" name="generate_filteredmap_node" />
+
+	<node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    	<rosparam file="$(find kamui_gui)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    	<rosparam file="$(find kamui_gui)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    	<rosparam file="$(find kamui_gui)/config/local_costmap_params.yaml" command="load" />
+    	<rosparam file="$(find kamui_gui)/config/global_costmap_params.yaml" command="load" />
+    	<rosparam file="$(find kamui_gui)/config/base_local_planner_params.yaml" command="load" />
+	</node>
+
+
+	<node pkg="frontier_with_wallfollower" type="frontier_with_wallfollower_node" name="frontier_with_wallfollower_node" output="screen"/>
+
+	<node pkg="frontier_with_wallfollower" type="launch_move_base" name="launch_move_base" output="screen"/>
+
+	<!--node pkg="image_out" type="image_out_node" name="image_out_node"/-->
+<!--
+	<node pkg="qt_tutorials" type="gui_mapping_node" name="gui_mapping_node"/>
+	<node pkg="qt_tutorials" type="qlistener" name="qlistener" />
+-->
+
+	<include file="$(find ps3joy)/launch/ps3.launch"/>
+	<node pkg="kamui_teleop" type="kamui_teleop_node" name="kamui_teleop_node"/>
+	<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_gimbal_node" name="laserscan_to_pointcloud_gimbal_node"/>
+	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server_node"/>
+
+</launch>

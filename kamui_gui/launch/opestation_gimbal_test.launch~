@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find kamui_gui)/launch/hector_mapping.launch"/>
+
+	<group ns="gimbal">
+		<node pkg="laserscan_to_pointcloud" type="laserscan_to_pointcloud_gimbal_node" name="laserscan_to_pointcloud_gimbal_node" output="screen" respawn="false"/>
+	</group>
+
+	<node pkg="octomap_server" type="octomap_server_node" name="octomap_server_node">
+		<remap from="cloud_in" to="/cloud_in2"/>
+		<param name="resolution" type="double" value="0.03" />
+		<param name="base_frame_id" type="string" value="/base_link" />
+		<param name="filter_ground" type="bool" value="false" />
+	</node>
+
+	<node pkg="walls_from_pointcloud2" type="walls_from_pointcloud2_node" name="walls_from_pointcloud2_node" output="screen"/>
+<!--
+	<node pkg="walls_from_pointcloud2" type="reset_octomap_client_node" name="reset_octomap_client_node" output="screen"/>
+-->
+	<node pkg="rviz" type="rviz" name="rviz"/>
+</launch>

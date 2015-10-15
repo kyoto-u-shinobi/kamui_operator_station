@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/opestation/catkin_ws/src/frontier_thermocam/build/devel/setup.sh

@@ -1,0 +1,44 @@
+#include "ros/ros.h"
+#include "sensor_msgs/PointCloud.h"
+#include "sensor_msgs/PointCloud2.h"
+#include "my_nav_msgs/OccupancyGrid3d.h"
+
+namespace my_nav_msgs {
+
+	sensor_msgs::PointCloud convertPointCloudToOccupancyGrid3d(const my_nav_msgs::OccupancyGrid3d::ConstPtr& msg)
+	{
+		sensor_msgs::PointCloud cloud;
+		cloud.header = msg->header;
+		int index[msg->data.size()];
+
+		int size = 0;
+		for(int i = 0; i < msg->data.size(); i++)
+		{
+			if(msg->data[i] == OCCUPIED)
+			{
+				index[size] = i;
+				size++;
+			}
+		}
+		cloud.points.resize(size);
+
+		double resol = msg->info.resolution;
+		uint32_t width = msg->info.width;
+		uint32_t depth = msg->info.depth;
+		uint32_t height = msg->info.height;
+		if(size > 0)
+		{
+			for(int i = 0; i < size; i++)
+			{
+				int j = index[i];
+				int ix = j % width;
+				int iy = (j / width) % depth;
+				int iz = j / width / depth;
+				cloud.points[i].x = resol/2 + resol*ix;
+				cloud.points[i].y = resol/2 + resol*iy;
+				cloud.points[i].z = resol/2 + resol*iz;			
+			}
+		}
+	}
+
+}

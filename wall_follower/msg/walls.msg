@@ -1,0 +1,9 @@
+float32 front
+float32 left
+float32 left2
+float32 right
+float32 right2
+float32 frontR
+float32 frontL
+float32 frontWidthR
+float32 frontWidthL

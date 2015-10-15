@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+
+
+<!-- [パッケージマニフェスト] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+<package>
+
+	<!-- [パッケージ名] -->
+	<name>nityc</name>
+
+	<!-- [パッケージバージョン] -->
+	<version>1.0.0</version>
+
+	<!-- [パッケージ説明] -->
+	<description>弓削商船高等専門学校ROSパッケージ</description>
+
+	<!-- [管理者] -->
+	<maintainer email="maeda@info.yuge.ac.jp">H.Maeda</maintainer>
+
+	<!-- [ライセンス] -->
+	<license>BSD</license>
+
+
+	<!-- [依存関係] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<!-- [ビルドツール依存関係] -->
+	<buildtool_depend>catkin</buildtool_depend>
+
+	<!-- [ビルド依存関係] -->
+	<build_depend>message_generation</build_depend>
+	<build_depend>roscpp</build_depend>
+	<build_depend>rospy</build_depend>
+	<build_depend>std_msgs</build_depend>
+	<build_depend>geometry_msgs</build_depend>
+	<build_depend>sensor_msgs</build_depend>
+
+	<!-- [実行依存関係] -->
+	<run_depend>message_runtime</run_depend>
+	<run_depend>roscpp</run_depend>
+	<run_depend>rospy</run_depend>
+	<run_depend>std_msgs</run_depend>
+	<run_depend>geometry_msgs</run_depend>
+	<run_depend>sensor_msgs</run_depend>
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+
+	<!-- [メタパッケージ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+	<export>
+	</export>
+
+	<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+
+
+</package>
+
+<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->

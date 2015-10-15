@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+
+	<group ns="optris">
+		<node pkg="thermo_blob" type="thermo_blob" name="thermo_blob" />
+	</group>
+
+	<node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" />
+
+	<node pkg="rviz" type="rviz" name="rviz" />
+
+	<include file="$(find hector_exploration_node)/launch/exploration_planner.launch"/>
+	<!--node pkg="hector_exploration_controller" type="simple_exoration_controller" name="simple_exoration_controller" /-->
+
+</launch>
